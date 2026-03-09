@@ -1,53 +1,100 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include "determinant.h"
 
-void cramer(double a[10][10], double b[10], double x[10], int n) {
-    double d = 1; // Determinant
-    double d1, d2, temp;
+int main()
+{
+    int n=3;
+    srand(time(NULL));
 
-    // Calculate the determinant
-    for (int i = 0; i < n; i++) {
-        d *= a[i][i];
-        for (int j = i + 1; j < n; j++) {
-            temp = a[j][i] / a[i][i];
-            for (int k = i; k < n; k++) {
-                a[j][k] -= temp * a[i][k];
+    double **A, **Ai;
+    double *B;
+    double detA;
+
+    FILE *f1=fopen("equation.txt","w");
+    FILE *f2=fopen("solution.txt","w");
+
+    A=(double**)malloc(n*sizeof(double*));
+    Ai=(double**)malloc(n*sizeof(double*));
+    B=(double*)malloc(n*sizeof(double));
+
+    for(int i=0;i<n;i++)
+    {
+        A[i]=(double*)malloc(n*sizeof(double));
+        Ai[i]=(double*)malloc(n*sizeof(double));
+    }
+
+    printf("Matrix A:\n");
+
+    for(int i=0;i<n;i++)
+    {
+        for(int j=0;j<n;j++)
+        {
+            A[i][j]=rand()%10+1;
+            fprintf(f1,"%lf ",A[i][j]);
+            printf("%5.2lf ",A[i][j]);
+        }
+
+        B[i]=rand()%10+1;
+        fprintf(f1,"| %lf\n",B[i]);
+        printf("| %5.2lf\n",B[i]);
+    }
+
+    detA=determinant(A,n);
+
+    if(detA==0)
+    {
+        printf("No unique solution\n");
+        return 0;
+    }
+
+    printf("\nSolutions:\n");
+
+    for(int k=0;k<n;k++)
+    {
+        pid_t pid=fork();
+
+        if(pid==0)
+        {
+            for(int i=0;i<n;i++)
+            {
+                for(int j=0;j<n;j++)
+                {
+                    if(j==k)
+                        Ai[i][j]=B[i];
+                    else
+                        Ai[i][j]=A[i][j];
+                }
             }
+
+            double detAi=determinant(Ai,n);
+            double x=detAi/detA;
+
+            printf("x%d = %lf\n",k+1,x);
+            fprintf(f2,"x%d = %lf\n",k+1,x);
+
+            exit(0);
         }
     }
 
-    // Calculate x values
-    for (int i = 0; i < n; i++) {
-        d1 = d;
-        for (int j = 0; j < n; j++) {
-            if (j == i) {
-                d1 *= b[j];
-            } else {
-                d1 *= a[j][j];
-            }
-        }
-        x[i] = d1 / d;
-    }
-}
+    for(int i=0;i<n;i++)
+        wait(NULL);
 
-int main() {
-    double a[10][10], b[10], x[10];
-    int n;
-    printf("Enter number of equations: ");
-    scanf("%d", &n);
-    printf("Enter coefficients of the equations (matrix A):\n");
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            scanf("%lf", &a[i][j]);
-        }
+    fclose(f1);
+    fclose(f2);
+
+    for(int i=0;i<n;i++)
+    {
+        free(A[i]);
+        free(Ai[i]);
     }
-    printf("Enter constants of the equations (vector B):\n");
-    for (int i = 0; i < n; i++) {
-        scanf("%lf", &b[i]);
-    }
-    cramer(a, b, x, n);
-    printf("Solutions:\n");
-    for (int i = 0; i < n; i++) {
-        printf("x[%%d] = %%lf\n", i, x[i]);
-    }
+
+    free(A);
+    free(Ai);
+    free(B);
+
     return 0;
 }
